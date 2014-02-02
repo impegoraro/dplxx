@@ -38,6 +38,7 @@ protected slots:
     void listIn(int inode, const QString& str);
     void listOut(int inode, const QString& str);
     void btnPressed();
+    void txtFilter(const QString&);
 
 private:
     Ui::MainWindow *ui;

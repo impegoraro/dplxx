@@ -11,5 +11,5 @@ Requirements
 The projects has very few dependencies, it only requires:
 	* qt4 devels (including qmake)
 	* inotify
-
+	* C++11 (Check if the compiler supports, GCC <=4.8 does not enable it by default).
 

@@ -16,6 +16,7 @@
  */
 
 #include <QDebug>
+#include <QStringList>
 #include <cstdlib>
 #include <cstdio>
 #include <cerrno>
@@ -41,13 +42,27 @@ DirectoryWatcher::DirectoryWatcher(const QString& dirStr)
     mSockNot = new QSocketNotifier(mWatchFd, QSocketNotifier::Read);
     connect(mSockNot, SIGNAL(activated(int)), this, SLOT(readSocket(int)));
     mSockNot->setEnabled(true);
+
+    // Adds subdirectories
+
+    mDir.setFilter(QDir::Dirs | QDir::NoDotAndDotDot);
+    for(auto file : mDir.entryInfoList()) {
+        DirectoryWatcher *subDir = new DirectoryWatcher(file.absoluteFilePath());
+
+        connect(subDir, SIGNAL(fileAdded(int, const QString&)), this, SLOT(handlerfileAdded(int, const QString&)));
+        connect(subDir, SIGNAL(fileRemoved(int, const QString&)), this, SLOT(handlerfileRemoved(int, const QString&)));
+        subDirs<< subDir;
+    }
+    // clear the filter...
+    mDir.setFilter(QDir::NoFilter);
 }
 
-DirectoryWatcher::DirectoryWatcher(const DirectoryWatcher& dw)
+// Remove because a QObject cannot be copied... avoids possible future problems.
+/*DirectoryWatcher::DirectoryWatcher(const DirectoryWatcher& dw)
     : mWatchFd(dw.mWatchFd), mDir(dw.mDir), mFileList(dw.mFileList), mSockNot(dw.mSockNot), subDirs(dw.subDirs)
 {
 
-}
+}*/
 
 DirectoryWatcher::~DirectoryWatcher()
 {
@@ -55,31 +70,15 @@ DirectoryWatcher::~DirectoryWatcher()
     delete mSockNot;
 }
 
-void DirectoryWatcher::scan()
+QStringList DirectoryWatcher::scan()
 {
-    readDir(mDir.absolutePath());
-}
+    QStringList list;
 
-void DirectoryWatcher::readDir(const QString& dirStr)
-{
-    QDir dir(dirStr);
+    list << mDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+    for(DirectoryWatcher *dw : subDirs)
+        list<< dw->scan();
 
-    for(QFileInfo file : dir.entryInfoList()) {
-        if(file == dir.canonicalPath() || file == dir.absoluteFilePath(".."))
-            continue;
-
-        if(file.isFile()) {
-            mFileList<< file.absoluteFilePath();
-            emit fileAdded(1, file.absoluteFilePath());
-        } else if(file.isDir()) {
-            DirectoryWatcher *subDir = new DirectoryWatcher(file.absoluteFilePath());
-
-            connect(subDir, SIGNAL(fileAdded(int, const QString&)), this, SLOT(handlerfileAdded(int, const QString&)));
-            connect(subDir, SIGNAL(fileRemoved(int, const QString&)), this, SLOT(handlerfileRemoved(int, const QString&)));
-            subDir->scan();
-            subDirs<< subDir;
-        }
-    }
+    return list;
 }
 
 void DirectoryWatcher::readSocket(int fd)
@@ -92,6 +91,7 @@ void DirectoryWatcher::readSocket(int fd)
     qDebug()<< "file/directory modification detected...";
 
     do {
+        err = 0;
         reissuedCall = false;
         len = read(fd, buf, BUF_LEN);
         if (len < 0) {

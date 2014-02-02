@@ -22,6 +22,7 @@
 #include <QString>
 #include <QDir>
 #include <QList>
+#include <QStringList>
 #include <QSocketNotifier>
 #include <QLinkedList>
 #include <sys/inotify.h>
@@ -31,9 +32,10 @@ class DirectoryWatcher : public QObject
     Q_OBJECT
 public:
     DirectoryWatcher(const QString& file);
-    DirectoryWatcher(const DirectoryWatcher& dw);
+    //DirectoryWatcher(const DirectoryWatcher& dw);
     ~DirectoryWatcher();
-    void scan();
+
+    QStringList scan();
 
 public slots:
     void readSocket(int fd);
@@ -43,15 +45,12 @@ signals:
     void fileRemoved(int inode, const QString& file);
 
 
-
 protected:
     int mWatchFd;
     QDir mDir;
-    QList<QString> mFileList;
+    QStringList mFileList;
     QSocketNotifier *mSockNot;
     QLinkedList<DirectoryWatcher*> subDirs;
-
-    void readDir(const QString& dirStr);
 
 protected slots:
     void handlerfileAdded(int inode, const QString& file);

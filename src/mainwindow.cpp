@@ -16,9 +16,15 @@
  */
 
 #include <QDebug>
+#include <QRegExp>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+
+void getLink(const QString& file)
+{
+
+}
 
 MainWindow::MainWindow(const QString& dir, QWidget *parent) :
     QMainWindow(parent),
@@ -28,8 +34,9 @@ MainWindow::MainWindow(const QString& dir, QWidget *parent) :
     connect(ui->btnReload, SIGNAL(clicked()), this, SLOT(btnPressed()));
     connect(&dirwatch, SIGNAL(fileAdded(int, const QString)), this, SLOT(listIn(int, const QString&)));
     connect(&dirwatch, SIGNAL(fileRemoved(int, const QString)), this, SLOT(listOut(int, const QString&)));
+    connect(ui->txtEdit, SIGNAL(textChanged(const QString&)), this, SLOT(txtFilter(const QString&)));
 
-    dirwatch.scan();
+    ui->listFiles->addItems(dirwatch.scan());
 }
 
 void MainWindow::listIn(int inode, const QString& str)
@@ -56,5 +63,25 @@ MainWindow::~MainWindow()
 
 void MainWindow::btnPressed()
 {
-    dirwatch.scan();
+
+}
+
+void MainWindow::txtFilter(const QString& str)
+{
+    ui->listFiles->clear();
+    QStringList list = dirwatch.scan();
+    QString rstr;
+
+    for(int i = 0; i < str.length(); i++)
+        rstr += (QString)".*" + str[i];
+    rstr += ".*";
+
+    QRegExp rexp(rstr, Qt::CaseInsensitive, QRegExp::RegExp);
+
+    if(ui->txtEdit->text().length() == 0) {
+        ui->listFiles->addItems(list);
+    } else {
+        ui->listFiles->addItems(list.filter(rexp));
+    }
+
 }
